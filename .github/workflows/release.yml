@@ -1,0 +1,33 @@
+on:
+  push:
+    branches:
+      - main
+  
+jobs:
+  release:
+    name: 🚀 Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          target: wasm32-unknown-unknown
+          toolchain: stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v3
+        with:
+            node-version: "18.17.0"
+      - run: cargo install wasm-pack
+      - run: yarn
+      - env:
+          RUSTFLAGS: --cfg=web_sys_unstable_apis
+        run:  yarn build
+      - env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: yarn semantic-release
+  
+  

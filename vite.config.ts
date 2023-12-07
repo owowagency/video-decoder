@@ -5,6 +5,7 @@ import wasm from 'vite-plugin-wasm';
 import wasmPack from './plugins/wasm-pack';
 import resolveBase64 from './plugins/resolve-base64';
 import topLevelAwait from 'vite-plugin-top-level-await';
+import dts from 'vite-plugin-dts';
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -12,7 +13,8 @@ export default defineConfig({
     react(), 
     wasm(), 
     wasmPack({crate: 'demuxer'}), 
-    resolveBase64()
+    resolveBase64(),
+    dts({rollupTypes: true}),
   ],
   resolve: {
     alias: [{
