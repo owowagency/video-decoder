@@ -1,0 +1,31 @@
+on:
+  push:
+    branches:
+      - main
+      - feature/semantic-release
+  
+jobs:
+  release:
+    name: 🚀 Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v3
+        with:
+            node-version: "18.17.0"
+      - run: cargo install cargo-watch
+      - run: cargo install wasm-pack
+      - run: yarn
+      - run: yarn build
+      - env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: yarn semantic-release
+  
+  
