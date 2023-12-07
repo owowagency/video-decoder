@@ -3,22 +3,8 @@ import react from '@vitejs/plugin-react'
 import {resolve} from 'node:path';
 import wasm from 'vite-plugin-wasm';
 import wasmPack from './plugins/wasm-pack';
+import resolveBase64 from './plugins/resolve-base64';
 import topLevelAwait from 'vite-plugin-top-level-await';
-
-function resolveBase64Url() {
-  return {
-    name: 'resolve-base64-url',
-
-    transform(src, id) {
-      if (id.endsWith('?base64')) {
-        return {
-          code: `export default "${btoa(src)}";`,
-          map: null,
-        };
-      }
-    },
-  }
-}
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -26,7 +12,7 @@ export default defineConfig({
     react(), 
     wasm(), 
     wasmPack({crate: 'demuxer'}), 
-    resolveBase64Url()
+    resolveBase64()
   ],
   resolve: {
     alias: [{
