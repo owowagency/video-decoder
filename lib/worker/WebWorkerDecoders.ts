@@ -111,25 +111,47 @@ const onGoto = (key: string, frame: number) => {
     entry?.goto(frame);
 }
 
+interface RendererConstructor {
+    new(canvas: OffscreenCanvas): Renderer;
+}
+
+interface Import {
+    default?: RendererConstructor, 
+}
+
 const onSetCanvas = (key: string, code: string, canvas?: OffscreenCanvas) => {
     if (!canvas) {
         postMessage({type: 'response:error', key, error: `No canvas transferred`})
         return;
     }
 
-    // TODO: Find a better way to move a class/function that is defined outside the package to the WebWorker without doing this:
-    const decodedCode = atob(code);
-    const constructorProvider = new Function(`
-        ${decodedCode}
-        return Renderer;    
-    `);
-    
-    const Renderer = constructorProvider();
-    const renderer = new Renderer(canvas) as Renderer;
+    import(/* @vite-ignore */ code)
+        .then((imported: Import) => {
+            if (imported.default) {
+                if (typeof imported.default !== 'function') {
+                    postMessage({type: 'response:error', key, error: `Default export is not a function`});
+                }
 
-
-    const entry = entries[key];
-    entry?.setRenderer(renderer);
+                const renderer = new imported.default(canvas);
+                if (!('draw' in renderer) || typeof renderer.draw !== 'function') {
+                    postMessage({type: 'response:error', key, error: `Renderer does not have required 'draw' method`});
+                    return;
+                }
+                const entry = entries[key];
+                entry?.setRenderer(renderer);
+            } else {
+                postMessage({type: 'response:error', key, error: 'No default export defined'});
+            }
+        })
+        .catch((error) => {
+            postMessage({
+                type: 'response:error', 
+                key,
+                error: typeof error === 'string' 
+                    ? error 
+                    : (error ? String(error) : undefined)
+            });
+        });
 }
 
 const canvasCache: Record<string, OffscreenCanvas> = {};
