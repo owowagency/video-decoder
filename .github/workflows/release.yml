@@ -21,8 +21,9 @@ jobs:
       - uses: actions/setup-node@v3
         with:
             node-version: "18.17.0"
-      - run: cargo install cargo-watch
       - run: cargo install wasm-pack
+      - run: which wasm-pack
+      - run: wasm-pack --version
       - run: yarn
       - run: yarn build
       - env:
