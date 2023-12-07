@@ -23,7 +23,9 @@ jobs:
             node-version: "18.17.0"
       - run: cargo install wasm-pack
       - run: yarn
-      - run: RUSTFLAGS=--cfg=web_sys_unstable_apis yarn build
+      - env:
+          RUSTFLAGS: --cfg=web_sys_unstable_apis
+        run:  yarn build
       - env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
