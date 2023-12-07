@@ -1,7 +1,7 @@
 {
   "name": "@owowagency/video-decoder",
   "private": false,
-  "version": "1.0.0-RC.2",
+  "version": "1.0.0",
   "type": "module",
   "types": "dist/index.d.ts",
   "main": "dist/index.js",
