@@ -1,7 +1,7 @@
 import { HTMLProps, RefObject, useEffect, useRef, useState } from "react";
 import Decoder, { Options } from '@owowagency/video-decoder';
 import LoadedDecoder from "./LoadedDecoder";
-import Renderer from "./Renderer?base64";
+import Renderer from "./Renderer?url";
 
 interface Props {
     src: string;

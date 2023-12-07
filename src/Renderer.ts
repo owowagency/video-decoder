@@ -1,4 +1,3 @@
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 class Renderer {
     private readonly ctx: WebGL2RenderingContext | WebGLRenderingContext | OffscreenCanvasRenderingContext2D;
     private static vertexShaderSource = `
@@ -135,3 +134,5 @@ class Renderer {
         }
     }
 }
+
+export default Renderer;
