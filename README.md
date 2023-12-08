@@ -29,7 +29,6 @@ import Renderer from './Renderer.ts?url';
 // Transfer control offscreen, so it can be sent to a web worker
 const canvas = document.querySelector('#canvas').transferControlToOffscreen();
 const decoder = new Decoder(VideoUrl, {
-    codec: 'vp09.00.61.12',
     pageSize: 10,
     preBufferSize: 2,
     postBufferSize: 2,
