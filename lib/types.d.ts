@@ -20,6 +20,11 @@ declare module '@crate/demuxer' {
         codedHeight(): number;
 
         /**
+        * @returns {string}
+        */
+        codec(): string;
+
+        /**
         * @returns {number | undefined}
         */
         displayWidth(): number | undefined;

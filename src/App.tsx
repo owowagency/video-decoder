@@ -17,9 +17,7 @@ interface Asset {
 const configs: Record<string, Asset> = {
   bunny: {
     url: VideoUrl,
-    options: {
-      codec: 'vp09.00.61.12',
-    },
+    options: {},
     frameHeight: 1080,
     frameWidth: 1920,
     frameCount: 3600,

@@ -1,6 +1,6 @@
 use std::{io::{Read, Seek}, ops::Deref};
 use js_sys::Uint8Array;
-use matroska_demuxer::{MatroskaFile, Frame, TrackType};
+use matroska_demuxer::{MatroskaFile, Frame};
 use wasm_bindgen::{JsError, JsValue};
 use web_sys::{EncodedVideoChunkType, EncodedVideoChunkInit, EncodedVideoChunk};
 
@@ -18,14 +18,9 @@ pub struct FrameCacheStore {
 }
 
 impl FrameCacheStore {
-    pub fn init<R: Read + Seek>(mut file: MatroskaFile<R>) -> Result<FrameCacheStore, JsValue> {
+    pub fn init<R: Read + Seek>(mut file: MatroskaFile<R>, video_track: u64) -> Result<FrameCacheStore, JsValue> {
         let mut store = Vec::new();
         // file.seek(0).map_err(|err| JsError::new(&err.to_string()))?;
-
-        let video_track = match file.tracks().iter().find(|t| t.track_type() == TrackType::Video) {
-            Some(track) => track.track_number().get(),
-            None => return Err(JsError::new("no video track!").into()),
-        };
 
         let mut frame = Frame::default();
         loop {

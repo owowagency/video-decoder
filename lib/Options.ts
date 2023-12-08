@@ -1,5 +1,4 @@
 export interface Options {
-    codec: string,
     pageSize?: number,
     preBufferSize?: number,
     postBufferSize?: number,

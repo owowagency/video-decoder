@@ -26,7 +26,6 @@ interface DecoderEventMap {
 
 function mergeWithDefaults(options: Options): FullOptions {
     return {
-        codec: options.codec,
         pageSize: Math.max(1, typeof options.pageSize === 'number' ? options.pageSize : 10),
         preBufferSize: Math.max(0, typeof options.preBufferSize === 'number' ? options.preBufferSize : 2),
         postBufferSize: Math.max(0, typeof options.postBufferSize === 'number' ? options.postBufferSize : 2),

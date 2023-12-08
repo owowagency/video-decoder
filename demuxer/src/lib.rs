@@ -20,6 +20,7 @@ pub struct Demuxer {
     display_width: Option<u32>,
     display_height: Option<u32>,
     duration: f64,
+    codec: String,
 }
 
 #[wasm_bindgen]
@@ -56,6 +57,10 @@ impl Demuxer {
     #[wasm_bindgen(js_name = timestampToFrame)]
     pub fn timestamp_to_frame(&self, timestamp: u32) -> Option<usize> {
         self.keyframes.timestamp_to_frame(timestamp as u64)
+    }
+
+    pub fn codec(&self) -> String {
+        self.codec.clone()
     }
 
     pub fn decode(&mut self, from: usize, to: usize, decoder: &VideoDecoder) -> Result<usize, JsValue> {
@@ -145,24 +150,18 @@ pub fn load(buffer: ArrayBuffer) -> Result<Demuxer, JsValue> {
 
     let matroska = MatroskaFile::open(cursor).map_err(|e| JsError::new(&e.to_string()))?;
 
-    let (_, video_track) = find_video_track(&matroska)
-        .ok_or(JsError::new("Could not find video track"))?;
+    let video_info = find_video_track(&matroska).map_err(|e| JsError::new(&e))?;
 
     let duration = matroska.info().duration().ok_or(JsError::new("Could not find duration"))?;
-    let coded_width = video_track.pixel_width().get() as u32;
-    let coded_height = video_track.pixel_height().get() as u32;
-    let display_width = video_track.display_width().map(|n| n.get() as u32);
-    let display_height = video_track.display_height().map(|n| n.get() as u32);
+    let coded_width = video_info.video.pixel_width().get() as u32;
+    let coded_height = video_info.video.pixel_height().get() as u32;
+    let display_width = video_info.video.display_width().map(|n| n.get() as u32);
+    let display_height = video_info.video.display_height().map(|n| n.get() as u32);
 
-    for track in matroska.tracks().iter() {
-        console_log!("found track: {}, {:?} {}", track.track_uid().get(), track.track_type(), track.codec_id());
-        if let Some(codec_private) = track.codec_private() {
-            console_log!("found private data: {codec_private:?} [{}, {:?}]", track.track_uid().get(), track.track_type());
-        }
-    }
+    let video_track = video_info.track.track_number().get();
+    let codec = video_info.codec;
 
-
-    let keyframes = FrameCacheStore::init(matroska)?;
+    let keyframes = FrameCacheStore::init(matroska, video_track)?;
 
     Ok(Demuxer {
         first_render: true,
@@ -173,15 +172,49 @@ pub fn load(buffer: ArrayBuffer) -> Result<Demuxer, JsValue> {
         display_width,
         display_height,
         duration,
+        codec,
     })
 }
 
-fn find_video_track<'a, R: Read + Seek>(matroska: &'a MatroskaFile<R>) -> Option<(&'a TrackEntry, &'a Video)> {
+struct VideoInfo<'a> {
+    track: &'a TrackEntry,
+    video: &'a Video,
+    codec: String,
+}
+
+fn find_video_track<'a, R: Read + Seek>(matroska: &'a MatroskaFile<R>) -> Result<VideoInfo, String> {
     for track in matroska.tracks().iter().rev() {
         if let Some(video) = track.video() {
-            return Some((track, video));
+            let codec = get_codec(track)?;
+            return Ok(VideoInfo { track, video, codec });
         }
     }
 
-    None
+    Err("Did not find video track".to_string())
+}
+
+// https://www.webmproject.org/docs/container/#vp9-codec-feature-metadata-codecprivate
+fn get_vp_codec(private: &[u8]) -> Result<String, String> {
+    if private.len() >= 2 {
+        let profile = private[0];
+        let level = private[1];
+        let bit_depth = private[2];
+
+        return Ok(format!("vp09.{profile:#02}.{level:#02}.{bit_depth:#02}"));
+    }
+
+    Err("Invalid CodecPrivate data".to_string())
+}
+
+fn get_codec<'a>(track: &'a TrackEntry) -> Result<String, String> {
+    match track.codec_id() {
+        // VP9 *SHOULD* have codec private data, but so far I haven't been able to get a video with it
+        "V_VP9" => match track.codec_private() {
+            Some(codec_private) => get_vp_codec(codec_private),
+            None => Ok("vp09.00.61.12".to_string())
+        }
+        // VP8 will never have codec private data, chrome seems to accept vp8
+        "V_VP8" => Ok("vp8".to_string()),
+        id => Err(format!("Unsupported codec id: {id:?}")),
+    }
 }
