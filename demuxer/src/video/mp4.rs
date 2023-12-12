@@ -1,6 +1,6 @@
 use std::io::Cursor;
 
-use crate::{video::frames::FrameCache, console_log};
+use crate::{video::frames::FrameCache, console_warn};
 
 use super::{VideoFile, frames::FrameCacheStore};
 
@@ -95,7 +95,7 @@ impl VideoFile for Mp4VideoFile {
                 let el = FrameCache::init(&sample.bytes, sample.start_time as f64, sample.is_sync)?;
                 store.push(el);
             } else {
-                console_log!("Did not find sample for id: {sample_id}");
+                console_warn!("Did not find sample for id: {sample_id}");
             }
         }
 

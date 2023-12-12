@@ -50,7 +50,7 @@ impl Demuxer {
         self.codec.clone()
     }
 
-    pub fn decode(&mut self, from: usize, to: usize, decoder: &VideoDecoder) -> Result<usize, JsValue> {
+    pub fn decode(&mut self, from: usize, to: usize, decoder: &VideoDecoder) -> usize {
         let skip_until = self.skip_to_keyframe(from);
         let mut decoded: usize = 0;
 
@@ -69,15 +69,15 @@ impl Demuxer {
 
             self.current_frame = idx;
             console_log!("decode frame: {idx}");
-            self.render(decoder)?;
+            self.render(decoder);
             self.first_render = false;
             decoded += 1;
         }
 
-        Ok(decoded)
+        decoded
     }
 
-    pub fn seek(&mut self, frame: usize, decoder: &VideoDecoder) -> Result<u32, JsValue> {
+    pub fn seek(&mut self, frame: usize, decoder: &VideoDecoder) -> u32 {
         let skip_until = self.skip_to_keyframe(frame);
 
         for idx in (0..self.keyframes.count()).into_iter() {
@@ -94,11 +94,11 @@ impl Demuxer {
             }
 
             self.current_frame = idx;
-            self.render(decoder)?;
+            self.render(decoder);
             self.first_render = false;
         }
         
-        Ok(self.current_timestamp())
+        self.current_timestamp()
     }
 
     fn current_timestamp(&self) -> u32 {
@@ -122,11 +122,16 @@ impl Demuxer {
         }
     }
 
-    fn render(&self, decoder: &VideoDecoder) -> Result<bool, JsValue> {
-        let frame = self.keyframes.get(self.current_frame).ok_or(JsError::new(&format!("Could not render frame {}", self.current_frame)))?;
-        console_log!("idx: {}, ts: {}, keyframe: {:?}", self.current_frame, frame.timestamp, frame.keyframe);
-        decoder.decode(&frame.chunk);
-        Ok(true)
+    fn render(&self, decoder: &VideoDecoder) -> bool {
+        if let Some(frame) = self.keyframes.get(self.current_frame) {
+            console_log!("idx: {}, ts: {}, keyframe: {:?}", self.current_frame, frame.timestamp, frame.keyframe);
+            decoder.decode(&frame.chunk);
+            return true;
+        }
+
+        console_error!("Could not render frame: {}", self.current_frame);
+
+        false
     }
 }
 
