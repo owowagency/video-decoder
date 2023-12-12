@@ -179,10 +179,3 @@ pub fn load(buffer: ArrayBuffer, format: ContainerFormat) -> Result<Demuxer, JsV
         codec,
     })
 }
-
-pub fn read_mp4(f: &ArrayBuffer) -> Result<mp4::Mp4Reader<Cursor<Vec<u8>>>, mp4::Error> {
-    let size = f.byte_length() as u64;
-    let cursor = f.into_cursor();
-    let mp4 = mp4::Mp4Reader::read_header(cursor, size)?;
-    Ok(mp4)
-}
