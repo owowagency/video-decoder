@@ -6,6 +6,7 @@ use web_sys::{EncodedVideoChunkType, EncodedVideoChunkInit, EncodedVideoChunk};
 pub struct FrameCache {
     pub keyframe: bool,
     pub timestamp: u64,
+    pub size: u32,
     pub chunk: EncodedVideoChunk,
 }
 
@@ -30,14 +31,15 @@ impl FrameCache {
             false => EncodedVideoChunkType::Delta,
         };
 
-        let data = Uint8Array::new_with_length(bytes.len() as u32);
+        let size = bytes.len() as u32;
+        let data = Uint8Array::new_with_length(size);
 
         data.copy_from(&bytes);
         let obj = data.deref();
         let init = EncodedVideoChunkInit::new(obj, ts as f64, chunk_type);
         let chunk = EncodedVideoChunk::new(&init)?;
 
-        Ok(Self { keyframe, timestamp: ts as u64, chunk })
+        Ok(Self { keyframe, timestamp: ts as u64, size, chunk })
     }
 }
 
@@ -54,6 +56,10 @@ impl FrameCacheStore {
 
         let count = store.len() - 1;
         Ok(Self { store, count })
+    }
+
+    pub fn total_size(&self) -> u64 {
+        self.store.iter().fold(0, |acc, el| acc + (el.size as u64))
     }
 
     pub fn count(&self) -> usize {

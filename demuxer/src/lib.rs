@@ -1,4 +1,4 @@
-use std::cmp::Ordering;
+use std::{cmp::Ordering, borrow::BorrowMut};
 
 use video::frames::FrameCacheStore;
 use js_sys::ArrayBuffer;
@@ -162,6 +162,8 @@ pub fn load(buffer: ArrayBuffer, format: ContainerFormat) -> Result<Demuxer, JsV
     let coded_height = file.coded_height()?;
     let duration = file.duration()?;
     let keyframes = file.keyframes()?;
+
+    console_log!("Demuxed frames size: {} mb", keyframes.total_size() as f64 * 0.000001);
 
     Ok(Demuxer {
         first_render: true,
