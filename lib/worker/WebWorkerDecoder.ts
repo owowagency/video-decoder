@@ -66,20 +66,29 @@ class WebWorkerDecoder {
             error: this.onError.bind(this)
         });
         this.decoder.configure(config);
+        this.decoder.addEventListener('dequeue', this.onDequeue.bind(this));
     }
 
-    private checkDecodeQueueSize() {
-        const current = this.fallbackDecodeQueueSize;
-        const next = Math.max(0, current - 1);
-        this.fallbackDecodeQueueSize = next;
-        const requested = this.requestedFrame;
+    // private checkDecodeQueueSize() {
+    //     const current = this.fallbackDecodeQueueSize;
+    //     const next = Math.max(0, current - 1);
+    //     this.fallbackDecodeQueueSize = next;
+    //     const requested = this.requestedFrame;
 
-        if (current !== next && next === 0 && typeof requested === 'number') {
+    //     if (current !== next && next === 0 && typeof requested === 'number') {
+    //         this.logger.timeEnd('decoder still busy, waiting...');
+    //         this.requestedFrame = null;
+    //         setTimeout(() => {
+    //             this.goto(requested, true);
+    //         }, 0);
+    //     }
+    // }
+
+    private onDequeue() {
+        const requested = this.requestedFrame;
+        if (requested !== null) {
             this.logger.timeEnd('decoder still busy, waiting...');
-            this.requestedFrame = null;
-            setTimeout(() => {
-                this.goto(requested, true);
-            }, 0);
+            this.goto(requested, true);
         }
     }
 
@@ -101,7 +110,7 @@ class WebWorkerDecoder {
             if (!(framePage >= start && framePage <= end)) {
                 frame.close();
 
-                this.checkDecodeQueueSize();
+                // this.checkDecodeQueueSize();
                 return;
             }
         }
@@ -124,7 +133,7 @@ class WebWorkerDecoder {
         }
 
         frame.close();
-        this.checkDecodeQueueSize();
+        // this.checkDecodeQueueSize();
     }
 
     private onError(error: Error) {
@@ -136,6 +145,10 @@ class WebWorkerDecoder {
     }
 
     goto(frame: number, force: boolean) {
+        if (force) {
+            this.requestedFrame = null;
+        }
+
         if (!force && this.currentFrame === frame) {
             // We don't have to do anything, we are already on this frame
             return;
@@ -168,7 +181,7 @@ class WebWorkerDecoder {
         const start = Math.max(0, newPage - this.behind);
         const end = Math.min(this.pages.size, newPage + this.ahead);
 
-        if (this.fallbackDecodeQueueSize > 0) {
+        if (this.decoder.decodeQueueSize > 0) {
             if (this.requestedFrame === null) {
                 this.logger.time('decoder still busy, waiting...');
             }
@@ -222,10 +235,10 @@ class WebWorkerDecoder {
         const buffer = await response.arrayBuffer();
         logger.timeEnd('load video file');
         logger.time('demux');
-        const demuxer = load(buffer);
+        const demuxer = load(buffer, WebWorkerDecoder.getContentType(response));
         logger.timeEnd('demux');
         const config: MyVideoDecoderConfig = {
-            codec: demuxer.codec(),
+            codec: options.codec,
             codedWidth: demuxer.codedWidth(),
             codedHeight: demuxer.codedHeight(),
         }
@@ -237,6 +250,26 @@ class WebWorkerDecoder {
         }
 
         return new WebWorkerDecoder(logger, demuxer, config, options);
+    }
+
+    private static getContentType(response: Response): string {
+        const type = response.headers.get('Content-Type');
+        const fallback = 'mp4';
+
+        if (typeof type === 'string') {
+            const pattern = /^video\/(?<format>.*)$/;
+            const match = type.match(pattern);
+            if (match && match.groups) {
+                switch (match.groups['format']) {
+                    case 'mkv':
+                    case 'webm': return 'mkv';
+                    case 'mp4': return 'mp4';
+                    default: return fallback;
+                }
+            }
+        }
+
+        return fallback;
     }
 }
 
