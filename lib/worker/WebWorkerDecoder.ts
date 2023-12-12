@@ -41,7 +41,6 @@ class WebWorkerDecoder {
     private demuxer: Demuxer | null;
     private currentFrame: number | undefined;
     private requestedFrame: number | null = null;
-    private fallbackDecodeQueueSize = 0;
     private realRenderer: Renderer | null = null;
     private firstRender = true;
 
@@ -69,21 +68,6 @@ class WebWorkerDecoder {
         this.decoder.addEventListener('dequeue', this.onDequeue.bind(this));
     }
 
-    // private checkDecodeQueueSize() {
-    //     const current = this.fallbackDecodeQueueSize;
-    //     const next = Math.max(0, current - 1);
-    //     this.fallbackDecodeQueueSize = next;
-    //     const requested = this.requestedFrame;
-
-    //     if (current !== next && next === 0 && typeof requested === 'number') {
-    //         this.logger.timeEnd('decoder still busy, waiting...');
-    //         this.requestedFrame = null;
-    //         setTimeout(() => {
-    //             this.goto(requested, true);
-    //         }, 0);
-    //     }
-    // }
-
     private onDequeue() {
         const requested = this.requestedFrame;
         if (requested !== null) {
@@ -109,8 +93,6 @@ class WebWorkerDecoder {
             const end = currentPage + this.ahead;
             if (!(framePage >= start && framePage <= end)) {
                 frame.close();
-
-                // this.checkDecodeQueueSize();
                 return;
             }
         }
@@ -133,7 +115,6 @@ class WebWorkerDecoder {
         }
 
         frame.close();
-        // this.checkDecodeQueueSize();
     }
 
     private onError(error: Error) {
@@ -200,8 +181,7 @@ class WebWorkerDecoder {
                 continue;
             }
 
-            const decoded = this.demuxer?.decode(page.from, page.to, this.decoder) || 0;
-            this.fallbackDecodeQueueSize += decoded;
+            this.demuxer?.decode(page.from, page.to, this.decoder) || 0;
         }
     }
 
