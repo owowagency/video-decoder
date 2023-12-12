@@ -1,4 +1,4 @@
-use std::{io::Cursor, cmp::Ordering};
+use std::cmp::Ordering;
 
 use video::frames::FrameCacheStore;
 use js_sys::ArrayBuffer;
@@ -135,17 +135,6 @@ impl Demuxer {
 pub enum ContainerFormat {
     Mkv = "mkv",
     Mp4 = "mp4",
-}
-
-trait IntoCursor {
-    fn into_cursor(&self) -> Cursor<Vec<u8>>;
-}
-
-impl IntoCursor for ArrayBuffer {
-    fn into_cursor(&self) -> Cursor<Vec<u8>> {
-        let buffer = js_sys::Uint8Array::new(&self).to_vec();
-        Cursor::new(buffer)
-    }
 }
 
 impl From<video::DemuxError> for JsValue {
