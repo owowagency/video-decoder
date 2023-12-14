@@ -59,8 +59,6 @@ function assets(): Record<string, Asset> {
 
 const configs: Record<string, Asset> = assets();
 
-const fallback = '2s_30fps_1280x720_av1_mp4';
-
 interface Route {
   url: URL,
   segments: string[]
@@ -99,15 +97,22 @@ const getAssetFromRoute = (route: Route): Asset => {
   let codec = 'vp9';
   let container = 'webm';
 
+  const fallback = `${duration}_${fps}_${size}_${codec}_${container}`;
+
   let idx = 1;
 
   for (const segment of route.segments) {
+    if (segment === 'default' || segment === '') {
+      idx += 1;
+      continue;
+    }
+
     switch (idx) {
-      case 1: if (segment !== 'default') size = segment; break;
-      case 2: if (segment !== 'default') duration = segment; break;
-      case 3: if (segment !== 'default') fps = segment; break;
-      case 4: if (segment !== 'default') codec = segment; break;
-      case 5: if (segment !== 'default') container = segment; break;
+      case 1: size = segment; break;
+      case 2: duration = segment; break;
+      case 3: fps = segment; break;
+      case 4: codec = segment; break;
+      case 5: container = segment; break;
     }
 
     idx += 1;
