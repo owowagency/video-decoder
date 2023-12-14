@@ -24,12 +24,18 @@ const AV1 = {
     decoder: 'libaom-av1',
 };
 
-// contains
+// containers
 
 const WEBM = {
     name: 'webm',
     ext: 'webm',
     codecs: [VP9, VP8, AV1],
+};
+
+const MKV = {
+    name: 'mkv',
+    ext: 'mkv',
+    codecs: [VP9],
 };
 
 const MP4 = {
@@ -38,7 +44,7 @@ const MP4 = {
     codecs: [VP9, AV1],
 };
 
-const containers = [WEBM, MP4];
+const containers = [WEBM, MKV, MP4];
 
 // sizes
 
