@@ -1,8 +1,10 @@
 use std::io::Cursor;
 
+use mp4::Mp4Reader;
+
 use crate::{video::frames::FrameCache, console_warn};
 
-use super::{VideoFile, frames::FrameCacheStore};
+use super::{VideoFile, frames::FrameCacheStore, CodecPrivate, vpcc::Vpcc};
 
 pub struct Mp4VideoFile {
     file: mp4::Mp4Reader<Cursor<Vec<u8>>>,
@@ -53,9 +55,35 @@ impl Mp4VideoFile {
     }
 }
 
+trait VideoCodec {
+    fn vpcc(&self) -> Option<Vpcc>;
+}
+
+impl<R: std::io::Read + std::io::Seek> VideoCodec for Mp4Reader<R> {
+    fn vpcc(&self) -> Option<Vpcc> {
+        for trak in self.moov.traks.iter() {
+            if let Some(vp09) = trak.mdia.minf.stbl.stsd.vp09.clone() {
+                return Some(Vpcc { 
+                    profile: vp09.vpcc.profile, 
+                    level: vp09.vpcc.level, 
+                    bit_depth: vp09.vpcc.bit_depth, 
+                    chroma_subsampling: vp09.vpcc.chroma_subsampling, 
+                })
+            }
+        }
+
+        None
+    }  
+}
+
 impl VideoFile for Mp4VideoFile {
     fn codec(&self) -> Option<String> {
-        // TODO: Figure out how to get a "FourCC" codec string that VideoDecoder accepts
+        if let Some(vpcc) = self.file.vpcc() {
+            return Some(vpcc.to_codec_string())
+        }
+
+        // TODO: Other codecs
+
         None
     }
 
@@ -84,6 +112,7 @@ impl VideoFile for Mp4VideoFile {
     }
 
     fn keyframes(&mut self) -> super::Result<super::frames::FrameCacheStore> {
+        
         let sample_count = self.file.sample_count(self.video_track)?;
         let mut store = Vec::new();
 

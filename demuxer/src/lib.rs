@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, borrow::BorrowMut};
+use std::cmp::Ordering;
 
 use video::frames::FrameCacheStore;
 use js_sys::ArrayBuffer;

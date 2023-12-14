@@ -1,8 +1,12 @@
 use self::frames::FrameCacheStore;
 
+mod util;
 pub mod mp4;
 pub mod mkv;
 pub mod frames;
+
+mod vpcc;
+mod av1;
 
 pub enum DemuxError {
     Io(String),
@@ -33,3 +37,8 @@ pub trait VideoFile {
     fn duration(&self) -> Result<f64>;
     fn keyframes(&mut self) -> Result<FrameCacheStore>;
 }
+
+trait CodecPrivate {
+    fn to_codec_string(&self) -> String;
+}
+

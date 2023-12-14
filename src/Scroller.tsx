@@ -9,7 +9,7 @@ interface Props {
     frameHeight: number,
     frameWidth: number,
     frameCount: number,
-    thumbnail: string,
+    thumbnail?: string,
     pxPerFrame: number,
     fps: number,
 }
@@ -198,7 +198,7 @@ const Scroller = ({ src, options, thumbnail, pxPerFrame, fps, frameCount, frameH
                     }}
                 />
 
-                {!rendered && <Placeholder src={thumbnail} width={frameWidth} height={frameHeight} />}
+                {!rendered && thumbnail && <Placeholder src={thumbnail} width={frameWidth} height={frameHeight} />}
 
                 {debug && <div style={{position: 'absolute', padding: '1rem', top: 0, fontWeight: 'bold', color: '#fff', textShadow: 'rgb(0, 0, 0) 1px 1px 2px'}}>
                     {Intl.NumberFormat('nl-NL').format(frameCount)} frames @ {frameWidth}x{frameHeight}

@@ -54,7 +54,7 @@ impl FrameCacheStore {
             return Err(FrameCacheError::NoFrames("Cannot initialize frame store cache with 0 frames".to_string()))
         }
 
-        let count = store.len() - 1;
+        let count = store.len();
         Ok(Self { store, count })
     }
 

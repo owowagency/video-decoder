@@ -1,89 +1,68 @@
 import {Options} from '@owowagency/video-decoder';
-import VideoUrl from './assets/bunny.webm?url';
-import ThumbnailUrl from './assets/bunny.webp?url';
 import Scroller from './Scroller';
-
-import SampleVideoVp9Mp4Url from './assets/sample_vp9.mp4?url';
-import SampleVideoAv1Mp4Url from './assets/sample_av1.mp4?url';
-import SampleVideoVp9WebmUrl from './assets/sample_vp9.webm?url';
-import SampleVideoVp8WebmUrl from './assets/sample_vp8.webm?url';
-import SampleThumbnailUrl from './assets/sample.webp?url';
 
 interface Asset {
   url: string,
+  name: string,
   options: Options,
   frameHeight: number,
   frameWidth: number,
   frameCount: number,
-  thumbnail: string,
+  thumbnail?: string,
   pxPerFrame: number,
   fps: number,
 }
 
-const configs: Record<string, Asset> = {
-  bunny: {
-    url: VideoUrl,
-    options: {
-      codec: 'vp09.00.61.12',
-    },
-    frameHeight: 1080,
-    frameWidth: 1920,
-    frameCount: 3600,
-    thumbnail: ThumbnailUrl,
-    pxPerFrame: 50,
-    fps: 1000 / 30,
-  },
-  'sample-vp9-webm': {
-    url: SampleVideoVp9WebmUrl,
-    options: {
-      codec: 'vp09.00.61.12',
-    },
-    frameHeight: 540,
-    frameWidth: 960,
-    frameCount: 375,
-    thumbnail: SampleThumbnailUrl,
-    pxPerFrame: 100,
-    fps: 1000 / 60,
-  },
-  'sample-vp8-webm': {
-    url: SampleVideoVp8WebmUrl,
-    options: {
-      codec: 'vp8',
-    },
-    frameHeight: 540,
-    frameWidth: 960,
-    frameCount: 375,
-    thumbnail: SampleThumbnailUrl,
-    pxPerFrame: 100,
-    fps: 1000 / 60,
-  },
-  'sample-vp9-mp4': {
-    url: SampleVideoVp9Mp4Url,
-    options: {
-      codec: 'vp09.00.61.12',
-    },
-    frameHeight: 540,
-    frameWidth: 960,
-    frameCount: 375,
-    thumbnail: SampleThumbnailUrl,
-    pxPerFrame: 100,
-    fps: 1000 / 60,
-  },
-  'sample-av1-mp4': {
-    url: SampleVideoAv1Mp4Url,
-    options: {
-      codec: 'av01.0.00M.08',
-    },
-    frameHeight: 540,
-    frameWidth: 960,
-    frameCount: 375,
-    thumbnail: SampleThumbnailUrl,
-    pxPerFrame: 100,
-    fps: 1000 / 60,
-  },
-};
+function extractConfig(url: string): Asset {
+  const pattern = /^.+\/video_(?<duration>\d+)s_(?<fps>\d+)fps_(?<width>\d+)x(?<height>\d+)_(?<codec>.+)\.(?<ext>[^?]+)\??(.*)$/;
+  const match = url.match(pattern);
+  if (match && match.groups) {
+    const duration = parseInt(match.groups['duration']);
+    const fps = parseInt(match.groups['fps']);
+    const frameCount = fps * duration;
+    const width = parseInt(match.groups['width']);
+    const height = parseInt(match.groups['height']);
+    const codecId = match.groups['codec'];
+    const ext = match.groups['ext'];
+    const codec = (function () {
+      switch (codecId) {
+        case 'av1': return 'av01.0.00M.08';
+        case 'vp9': return 'vp09.01.61.12';
+        case 'vp8': return 'vp8';
+        default: throw new Error(`Unknown codec: ${codecId}`);
+      }
+    })();
 
-const asset = configs[new URL(window.location.href).searchParams.get('asset') || 'bunny'] || configs.bunny;
+    return {
+      fps: 1000 / fps,
+      url,
+      name: `${duration}s_${fps}fps_${width}x${height}_${codecId}_${ext}`,
+      options: {
+        codec,
+      },
+      frameCount: frameCount,
+      frameWidth: width,
+      frameHeight: height,
+      pxPerFrame: 50,
+    }
+  }
+
+  throw new Error('File name does not match pattern');
+}
+
+function assets(): Record<string, Asset> {
+  const x = import.meta.glob('./assets/videos/*', {eager: true, as: 'url'});
+
+  return Object.values(x).map(extractConfig).reduce((acc, asset) => ({...acc, [asset.name]: asset}), {});
+}
+
+const configs: Record<string, Asset> = assets();
+
+const fallback = '2s_30fps_1280x720_av1_mp4';
+
+const asset = configs[new URL(window.location.href).searchParams.get('asset') || fallback] || configs[fallback];
+
+console.log('asset', asset);
 
 function App() {
   return (

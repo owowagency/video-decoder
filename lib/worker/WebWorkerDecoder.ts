@@ -218,7 +218,7 @@ class WebWorkerDecoder {
         const demuxer = load(buffer, WebWorkerDecoder.getContentType(response));
         logger.timeEnd('demux');
         const config: MyVideoDecoderConfig = {
-            codec: options.codec,
+            codec: demuxer.codec() || options.codec,
             codedWidth: demuxer.codedWidth(),
             codedHeight: demuxer.codedHeight(),
         }
