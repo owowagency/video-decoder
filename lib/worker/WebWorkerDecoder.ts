@@ -197,7 +197,9 @@ class WebWorkerDecoder {
     }
 
     free() {
+        this.realRenderer?.close();
         this.realRenderer = null;
+        this.renderer.close();
         this.pages.freeAll();
         this.decoder.close();
         this.demuxer?.free();
@@ -221,6 +223,7 @@ class WebWorkerDecoder {
             codec: demuxer.codec() || options.codec,
             codedWidth: demuxer.codedWidth(),
             codedHeight: demuxer.codedHeight(),
+            colorSpace: {}
         }
         
         const supported = await VideoDecoder.isConfigSupported(config);

@@ -35,7 +35,7 @@ const WEBM = {
 const MKV = {
     name: 'mkv',
     ext: 'mkv',
-    codecs: [VP9],
+    codecs: [VP9, VP8, AV1],
 };
 
 const MP4 = {

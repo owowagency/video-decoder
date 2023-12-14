@@ -1,5 +1,6 @@
 import {Options} from '@owowagency/video-decoder';
 import Scroller from './Scroller';
+import { useEffect, useMemo, useState } from 'react';
 
 interface Asset {
   url: string,
@@ -60,11 +61,76 @@ const configs: Record<string, Asset> = assets();
 
 const fallback = '2s_30fps_1280x720_av1_mp4';
 
-const asset = configs[new URL(window.location.href).searchParams.get('asset') || fallback] || configs[fallback];
+interface Route {
+  url: URL,
+  segments: string[]
+}
 
-console.log('asset', asset);
+const getRoute = (): Route => {
+  const url = new URL(window.location.href);
+  const segments = url.pathname.replace(/^\//, '').split('/');
+  return {
+    url,
+    segments,
+  };
+}
+
+const useRoute = (): Route => {
+  const [route, setRoute] = useState(getRoute());
+
+  useEffect(() => {
+    const listener = () => {
+      setRoute(getRoute());
+    };
+    window.addEventListener('locationchange', listener);
+
+    return () => {
+      window.removeEventListener('locationchange', listener);
+    };
+  }, [setRoute]);
+
+  return route;
+}
+
+const getAssetFromRoute = (route: Route): Asset => {
+  let size = '1920x1080';
+  let duration = '2s';
+  let fps = '60fps';
+  let codec = 'vp9';
+  let container = 'webm';
+
+  let idx = 1;
+
+  for (const segment of route.segments) {
+    switch (idx) {
+      case 1: if (segment !== 'default') size = segment; break;
+      case 2: if (segment !== 'default') duration = segment; break;
+      case 3: if (segment !== 'default') fps = segment; break;
+      case 4: if (segment !== 'default') codec = segment; break;
+      case 5: if (segment !== 'default') container = segment; break;
+    }
+
+    idx += 1;
+  }
+
+  const key = `${duration}_${fps}_${size}_${codec}_${container}`;
+  const asset = configs[key];
+
+  if (!asset) {
+    console.warn('Did not find configuration', {size, duration, fps, codec, container});
+    return configs[fallback];
+  }
+
+  return asset;
+}
+
+const useAsset = (): Asset => {
+  const route = useRoute();
+  return useMemo(() => getAssetFromRoute(route), [route]);
+}
 
 function App() {
+  const asset = useAsset();
   return (
     <>
       <Scroller 
