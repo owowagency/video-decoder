@@ -96,9 +96,9 @@ impl<'a> VpccCodecPrivateReader<'a> {
         // TODO: Verify that level, profile, bit_depth & chroma subsampling have valid values based on spec
         let return_value = match id {
             // https://github.com/webmproject/libwebm/blob/6745fd29e0245fc584b0bb9f65018ea2366fe7fb/common/hdr_util.cc#L166
-            VpccFeature::Profile => (VpccFeature::Level, *self.data.get(self.offset).ok_or("Could not get level byte")?),
+            VpccFeature::Profile => (VpccFeature::Profile, *self.data.get(self.offset).ok_or("Could not get level byte")?),
             // https://github.com/webmproject/libwebm/blob/6745fd29e0245fc584b0bb9f65018ea2366fe7fb/common/hdr_util.cc#L175
-            VpccFeature::Level => (VpccFeature::Profile, *self.data.get(self.offset).ok_or("Could not get profile byte")?),
+            VpccFeature::Level => (VpccFeature::Level, *self.data.get(self.offset).ok_or("Could not get profile byte")?),
             // https://github.com/webmproject/libwebm/blob/6745fd29e0245fc584b0bb9f65018ea2366fe7fb/common/hdr_util.cc#L194
             VpccFeature::BitDepth => (VpccFeature::BitDepth, *self.data.get(self.offset).ok_or("Could not get bit_depth byte")?),
             // https://github.com/webmproject/libwebm/blob/6745fd29e0245fc584b0bb9f65018ea2366fe7fb/common/hdr_util.cc#L203
@@ -113,7 +113,7 @@ impl<'a> VpccCodecPrivateReader<'a> {
     fn read(&mut self) -> Result<Vpcc, String> {
         self.offset = 0;
         let mut vpcc = Vpcc { profile: 0, level: 0, bit_depth: 0, chroma_subsampling: 0 };
-        for _ in 0..3 {
+        for _ in 0..4 {
             let (id, value) = self.next()?;
             match id {
                 VpccFeature::Profile => vpcc.profile = value,
@@ -237,5 +237,24 @@ impl VideoFile for MkvVideoFile {
         }
 
         Ok(FrameCacheStore::new(store)?)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use matroska_demuxer::TrackType;
+
+    use crate::video::{mkv::VpccCodecPrivateReader, vpcc::Vpcc};
+
+    #[test]
+    fn it_works() {
+        let vpcc_expected = Vpcc { profile: 1, level: 31, bit_depth: 8, chroma_subsampling: 3};
+        let file = std::fs::File::open("data/test_vp9_codec_private.webm").unwrap();
+        let mkv = matroska_demuxer::MatroskaFile::open(file).unwrap();
+        let track = mkv.tracks().iter().find(|t| t.track_type() == TrackType::Video).unwrap();
+        let data = track.codec_private().unwrap();
+        let mut reader = VpccCodecPrivateReader::from(data);
+        let vpcc = reader.read().unwrap();
+        assert_eq!(vpcc, vpcc_expected);
     }
 }

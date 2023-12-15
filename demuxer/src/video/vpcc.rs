@@ -1,5 +1,6 @@
 use super::CodecPrivate;
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct Vpcc {
     pub profile: u8,
     pub level: u8,
