@@ -312,7 +312,7 @@ mod tests {
         let data: &[u8] = &[
             2, 1, 31, // Level: 31
             3, 1, 8, // Bit depth: 8
-            4, 1, 3, // Bit depth: 8
+            4, 1, 3, // Chroma subsampling: 3
         ];
         let mut reader = VpccCodecPrivateReader::from(data);
         let vpcc = reader.read();
