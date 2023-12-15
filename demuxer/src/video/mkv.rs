@@ -37,7 +37,7 @@ impl Av1 {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 enum VpccFeature {
     Profile = 1,
     Level = 2,
@@ -112,18 +112,26 @@ impl<'a> VpccCodecPrivateReader<'a> {
 
     fn read(&mut self) -> Result<Vpcc, String> {
         self.offset = 0;
-        let mut vpcc = Vpcc { profile: 0, level: 0, bit_depth: 0, chroma_subsampling: 0 };
-        for _ in 0..4 {
-            let (id, value) = self.next()?;
-            match id {
-                VpccFeature::Profile => vpcc.profile = value,
-                VpccFeature::Level => vpcc.level = value,
-                VpccFeature::BitDepth => vpcc.bit_depth = value,
-                VpccFeature::ChromaSubsampling => vpcc.chroma_subsampling = value,
-            }
+        let mut features: Vec<(VpccFeature, u8)> = Vec::new();
+
+        while self.offset + 3 <= self.data.len() {
+            let result = self.next()?;
+            features.push(result);
         }
 
-        Ok(vpcc)
+        Ok(Vpcc { 
+            profile: VpccCodecPrivateReader::get_feature(&features, VpccFeature::Profile)?, 
+            level: VpccCodecPrivateReader::get_feature(&features, VpccFeature::Level)?, 
+            bit_depth: VpccCodecPrivateReader::get_feature(&features, VpccFeature::BitDepth)?, 
+            chroma_subsampling: VpccCodecPrivateReader::get_feature(&features, VpccFeature::ChromaSubsampling)?
+        })
+    }
+
+    fn get_feature(features: &Vec<(VpccFeature, u8)>, feature: VpccFeature) -> Result<u8, String> {
+        features
+                .iter()
+                .find(|(f, _)| *f == feature).map(|(_, value)| *value)
+                .ok_or(format!("Missing feature {:?}", feature))
     }
 }
 
@@ -247,7 +255,7 @@ mod tests {
     use crate::video::{mkv::VpccCodecPrivateReader, vpcc::Vpcc};
 
     #[test]
-    fn it_works() {
+    fn it_works_on_video_generated_with_ffmpeg() {
         let vpcc_expected = Vpcc { profile: 1, level: 31, bit_depth: 8, chroma_subsampling: 3};
         let file = std::fs::File::open("data/test_vp9_codec_private.webm").unwrap();
         let mkv = matroska_demuxer::MatroskaFile::open(file).unwrap();
@@ -256,5 +264,59 @@ mod tests {
         let mut reader = VpccCodecPrivateReader::from(data);
         let vpcc = reader.read().unwrap();
         assert_eq!(vpcc, vpcc_expected);
+    }
+
+    #[test]
+    fn it_works_with_valid_codec_private_data() {
+        let vpcc_expected = Vpcc { profile: 1, level: 31, bit_depth: 8, chroma_subsampling: 3};
+        let data: &[u8] = &[
+            1, 1, 1, // Profile: 1
+            2, 1, 31, // Level: 31
+            3, 1, 8, // Bit depth: 8
+            4, 1, 3, // Chroma subsampling: 3
+        ];
+        let mut reader = VpccCodecPrivateReader::from(data);
+        let vpcc = reader.read().unwrap();
+        assert_eq!(vpcc, vpcc_expected);
+    }
+
+    #[test]
+    fn it_fails_on_invalid_length() {
+        // Profile length must be 1
+        let data: &[u8] = &[
+            1, 0, 1, // Profile: 1
+            2, 1, 31, // Level: 31
+            3, 1, 8, // Bit depth: 8
+            4, 1, 3, // Chroma subsampling: 3
+        ];
+        let mut reader = VpccCodecPrivateReader::from(data);
+        let vpcc = reader.read();
+
+        assert_eq!(vpcc, Err("Invalid length for feature Profile".into()));
+    }
+
+    #[test]
+    fn it_fails_on_not_all_features() {
+        // Missing chroma subsampling
+        let data: &[u8] = &[
+            1, 1, 1, // Profile: 1
+            2, 1, 31, // Level: 31
+            3, 1, 8, // Bit depth: 8
+        ];
+        let mut reader = VpccCodecPrivateReader::from(data);
+        let vpcc = reader.read();
+
+        assert_eq!(vpcc, Err("Missing feature ChromaSubsampling".into()));
+
+        // Missing profile
+        let data: &[u8] = &[
+            2, 1, 31, // Level: 31
+            3, 1, 8, // Bit depth: 8
+            4, 1, 3, // Bit depth: 8
+        ];
+        let mut reader = VpccCodecPrivateReader::from(data);
+        let vpcc = reader.read();
+
+        assert_eq!(vpcc, Err("Missing feature Profile".into()));
     }
 }
