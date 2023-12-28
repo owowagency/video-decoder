@@ -1,0 +1,25 @@
+{
+    "name": "@owowagency/video-decoder-examples",
+    "version": "1.0.0",
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build",
+        "release": "echo \"No release script for examples\"",
+        "generate:video": "node scripts/generate-test-videos.js"
+    },
+    "dependencies": {
+        "@owowagency/video-decoder": "*"
+    },
+    "devDependencies": {
+        "@types/react": "^18.2.37",
+        "@types/react-dom": "^18.2.15",
+        "@vitejs/plugin-react": "^4.2.0",
+        "eslint": "^8.53.0",
+        "eslint-plugin-react-hooks": "^4.6.0",
+        "eslint-plugin-react-refresh": "^0.4.4",
+        "react": "^18.2.0",
+        "react-dom": "^18.2.0",
+        "typescript": "^5.2.2",
+        "vite": "^5.0.0"
+    }
+}

@@ -34,7 +34,6 @@ function mergeWithDefaults(options: Options): FullOptions {
 }
 
 class Decoder extends EventEmitter<DecoderEventMap> {
-    private static ready: boolean = false;
     private static transferredCanvases: Record<string, OffscreenCanvas> = {};
 
     private readonly queue: RequestMessage[] = [];
@@ -74,7 +73,6 @@ class Decoder extends EventEmitter<DecoderEventMap> {
     }
 
     private onReady() {
-        Decoder.ready = true;
         let message = this.queue.pop();
         while (message) {
             this.send(message);
@@ -83,7 +81,7 @@ class Decoder extends EventEmitter<DecoderEventMap> {
     }
 
     private postMessage(message: RequestMessage) {
-        if (Decoder.ready) {
+        if (Worker.ready) {
             this.send(message);
         } else {
             if (message.type === 'request:dispose') {

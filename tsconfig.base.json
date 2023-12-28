@@ -19,13 +19,6 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
-    "rootDir": "./",
-    "baseUrl": "./",
-    "paths": {
-      "@owowagency/video-decoder": ["./lib/index.ts"]
-    }
   },
-  "include": ["src", "lib"],
   "references": [{ "path": "./tsconfig.node.json" }],
-
 }
