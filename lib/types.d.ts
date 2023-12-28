@@ -1,10 +1,10 @@
 declare module '@crate/demuxer' {
-    /**
+   /**
     * @param {ArrayBuffer} buffer
+    * @param {string} format
     * @returns {Demuxer}
     */
-    export function load(buffer: ArrayBuffer): Demuxer;
-
+    export function load(buffer: ArrayBuffer, format: string): Demuxer;
 
     export class Demuxer {
         free(): void;
@@ -18,6 +18,11 @@ declare module '@crate/demuxer' {
         * @returns {number}
         */
         codedHeight(): number;
+
+        /**
+        * @returns {string | undefined}
+        */
+        codec(): string | undefined;
 
         /**
         * @returns {number | undefined}
