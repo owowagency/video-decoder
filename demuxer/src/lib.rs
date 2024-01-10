@@ -1,12 +1,11 @@
-use std::{io::{Cursor, Read, Seek}, cmp::Ordering};
+use std::cmp::Ordering;
 
-use frames::FrameCacheStore;
+use video::frames::FrameCacheStore;
 use js_sys::ArrayBuffer;
-use matroska_demuxer::{MatroskaFile, TrackEntry, Video};
 use web_sys::VideoDecoder;
 
-mod frames;
 mod log;
+mod video;
 
 use wasm_bindgen::prelude::*;
 
@@ -17,9 +16,8 @@ pub struct Demuxer {
     current_frame: usize,
     coded_width: u32,
     coded_height: u32,
-    display_width: Option<u32>,
-    display_height: Option<u32>,
     duration: f64,
+    codec: Option<String>,
 }
 
 #[wasm_bindgen]
@@ -32,16 +30,6 @@ impl Demuxer {
     #[wasm_bindgen(js_name = codedHeight)]
     pub fn coded_height(&self) -> u32 {
         self.coded_height
-    }
-
-    #[wasm_bindgen(js_name = displayWidth)]
-    pub fn display_width(&self) -> Option<u32> {
-        self.display_width
-    }
-
-    #[wasm_bindgen(js_name = displayHeight)]
-    pub fn display_height(&self) -> Option<u32> {
-        self.display_height
     }
 
     pub fn duration(&self) -> f64 {
@@ -58,7 +46,11 @@ impl Demuxer {
         self.keyframes.timestamp_to_frame(timestamp as u64)
     }
 
-    pub fn decode(&mut self, from: usize, to: usize, decoder: &VideoDecoder) -> Result<usize, JsValue> {
+    pub fn codec(&self) -> Option<String> {
+        self.codec.clone()
+    }
+
+    pub fn decode(&mut self, from: usize, to: usize, decoder: &VideoDecoder) -> usize {
         let skip_until = self.skip_to_keyframe(from);
         let mut decoded: usize = 0;
 
@@ -77,15 +69,15 @@ impl Demuxer {
 
             self.current_frame = idx;
             console_log!("decode frame: {idx}");
-            self.render(decoder)?;
+            self.render(decoder);
             self.first_render = false;
             decoded += 1;
         }
 
-        Ok(decoded)
+        decoded
     }
 
-    pub fn seek(&mut self, frame: usize, decoder: &VideoDecoder) -> Result<u32, JsValue> {
+    pub fn seek(&mut self, frame: usize, decoder: &VideoDecoder) -> u32 {
         let skip_until = self.skip_to_keyframe(frame);
 
         for idx in (0..self.keyframes.count()).into_iter() {
@@ -102,11 +94,11 @@ impl Demuxer {
             }
 
             self.current_frame = idx;
-            self.render(decoder)?;
+            self.render(decoder);
             self.first_render = false;
         }
         
-        Ok(self.current_timestamp())
+        self.current_timestamp()
     }
 
     fn current_timestamp(&self) -> u32 {
@@ -130,39 +122,48 @@ impl Demuxer {
         }
     }
 
-    fn render(&self, decoder: &VideoDecoder) -> Result<bool, JsValue> {
-        let frame = self.keyframes.get(self.current_frame).ok_or(JsError::new(&format!("Could not render frame {}", self.current_frame)))?;
-        console_log!("idx: {}, ts: {}, keyframe: {:?}", self.current_frame, frame.timestamp, frame.keyframe);
-        decoder.decode(&frame.chunk);
-        Ok(true)
+    fn render(&self, decoder: &VideoDecoder) -> bool {
+        if let Some(frame) = self.keyframes.get(self.current_frame) {
+            console_log!("idx: {}, ts: {}, keyframe: {:?}", self.current_frame, frame.timestamp, frame.keyframe);
+            decoder.decode(&frame.chunk);
+            return true;
+        }
+
+        console_error!("Could not render frame: {}", self.current_frame);
+
+        false
     }
 }
 
 #[wasm_bindgen]
-pub fn load(buffer: ArrayBuffer) -> Result<Demuxer, JsValue> {
-    let buffer = js_sys::Uint8Array::new(&buffer).to_vec();
-    let cursor = Cursor::new(buffer);
+#[derive(Copy, Clone, Debug)]
+pub enum ContainerFormat {
+    Mkv = "mkv",
+    Mp4 = "mp4",
+}
 
-    let matroska = MatroskaFile::open(cursor).map_err(|e| JsError::new(&e.to_string()))?;
-
-    let (_, video_track) = find_video_track(&matroska)
-        .ok_or(JsError::new("Could not find video track"))?;
-
-    let duration = matroska.info().duration().ok_or(JsError::new("Could not find duration"))?;
-    let coded_width = video_track.pixel_width().get() as u32;
-    let coded_height = video_track.pixel_height().get() as u32;
-    let display_width = video_track.display_width().map(|n| n.get() as u32);
-    let display_height = video_track.display_height().map(|n| n.get() as u32);
-
-    for track in matroska.tracks().iter() {
-        console_log!("found track: {}, {:?} {}", track.track_uid().get(), track.track_type(), track.codec_id());
-        if let Some(codec_private) = track.codec_private() {
-            console_log!("found private data: {codec_private:?} [{}, {:?}]", track.track_uid().get(), track.track_type());
-        }
+impl From<video::DemuxError> for JsValue {
+    fn from(value: video::DemuxError) -> Self {
+        JsError::new(&value.to_string()).into()
     }
+}
 
+#[wasm_bindgen]
+pub fn load(buffer: ArrayBuffer, format: ContainerFormat) -> Result<Demuxer, JsValue> {
+    let buffer = js_sys::Uint8Array::new(&buffer).to_vec();
+    let mut file: Box<dyn video::VideoFile> = match format {
+        ContainerFormat::Mkv => Box::new(video::mkv::MkvVideoFile::init(buffer)?),
+        ContainerFormat::Mp4 => Box::new(video::mp4::Mp4VideoFile::init(buffer)?),
+        format => return Err(JsError::new(&format!("Invalid container format: {format:?}")).into()),
+    };
 
-    let keyframes = FrameCacheStore::init(matroska)?;
+    let codec = file.codec();
+    let coded_width = file.coded_width()?;
+    let coded_height = file.coded_height()?;
+    let duration = file.duration()?;
+    let keyframes = file.keyframes()?;
+
+    console_log!("Demuxed frames size: {} mb", keyframes.total_size() as f64 * 0.000001);
 
     Ok(Demuxer {
         first_render: true,
@@ -170,18 +171,7 @@ pub fn load(buffer: ArrayBuffer) -> Result<Demuxer, JsValue> {
         current_frame: 0,
         coded_width,
         coded_height,
-        display_width,
-        display_height,
         duration,
+        codec,
     })
-}
-
-fn find_video_track<'a, R: Read + Seek>(matroska: &'a MatroskaFile<R>) -> Option<(&'a TrackEntry, &'a Video)> {
-    for track in matroska.tracks().iter().rev() {
-        if let Some(video) = track.video() {
-            return Some((track, video));
-        }
-    }
-
-    None
 }

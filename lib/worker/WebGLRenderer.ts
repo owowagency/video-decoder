@@ -24,6 +24,12 @@ class WebGLRenderer {
     }
   `;
 
+    private vertexShader: WebGLShader | null = null;
+    private fragmentShader: WebGLShader | null = null;
+    private shaderProgram: WebGLProgram | null = null;
+    private vertexBuffer: WebGLBuffer | null = null;
+    private texture: WebGLTexture | null = null;
+
     static getContext(canvas: OffscreenCanvas): WebGL2RenderingContext | WebGLRenderingContext | OffscreenCanvasRenderingContext2D {
         const webglOptions = {
             preserveDrawingBuffer: false,
@@ -57,6 +63,24 @@ class WebGLRenderer {
         throw new Error('Could not get canvas context, tried webgl2, webgl and 2d');
     }
 
+    static getError(ctx: WebGL2RenderingContext | WebGLRenderingContext) {
+        const error = ctx.getError();
+        switch (error) {
+            case ctx.NO_ERROR: return `[${error}] No WebGL Error`;
+            case ctx.INVALID_ENUM: return `[${error}] Invalid Enum`;
+            case ctx.INVALID_VALUE: return `[${error}] Invalid Value`;
+            case ctx.INVALID_OPERATION: return `[${error}] Invalid Operation`;
+            case ctx.INVALID_FRAMEBUFFER_OPERATION: return `[${error}] Invalid Framebuffer Operation`;
+            case ctx.OUT_OF_MEMORY: return `[${error}] Out of Memory`;
+            case ctx.CONTEXT_LOST_WEBGL: return `[${error}] Context Lost`;
+            default: return `[${error}] Unknown WebGL Error`;
+        }
+    }
+
+    static error(ctx: WebGL2RenderingContext | WebGLRenderingContext, description: string): Error {
+        return new Error(`${description} ${WebGLRenderer.getError(ctx)}`);
+    }
+
     constructor(canvas: OffscreenCanvas) {
         this.canvas = canvas;
         const gl = WebGLRenderer.getContext(canvas);
@@ -64,8 +88,10 @@ class WebGLRenderer {
         if (!(gl instanceof OffscreenCanvasRenderingContext2D)) {
             const vertexShader = gl.createShader(gl.VERTEX_SHADER);
             if (!vertexShader) {
-                throw new Error('Unable to create vertex shader');
+                throw WebGLRenderer.error(gl, 'Unable to create vertex shader');
             }
+
+            this.vertexShader = vertexShader;
             gl.shaderSource(vertexShader, WebGLRenderer.vertexShaderSource);
             gl.compileShader(vertexShader);
             if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
@@ -74,9 +100,10 @@ class WebGLRenderer {
 
             const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
             if (!fragmentShader) {
-                throw new Error('Unable to create fragment shader');
+                throw WebGLRenderer.error(gl, 'Unable to create fragment shader');
             }
 
+            this.fragmentShader = fragmentShader;
             gl.shaderSource(fragmentShader, WebGLRenderer.fragmentShaderSource);
             gl.compileShader(fragmentShader);
             if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
@@ -85,9 +112,10 @@ class WebGLRenderer {
 
             const shaderProgram = gl.createProgram();
             if (!shaderProgram) {
-                throw new Error('Unable to create program');
+                throw WebGLRenderer.error(gl, 'Unable to create program');
             }
 
+            this.shaderProgram = shaderProgram;
             gl.attachShader(shaderProgram, vertexShader);
             gl.attachShader(shaderProgram, fragmentShader);
             gl.linkProgram(shaderProgram);
@@ -97,6 +125,8 @@ class WebGLRenderer {
             gl.useProgram(shaderProgram);
 
             const vertexBuffer = gl.createBuffer();
+
+            this.vertexBuffer = vertexBuffer;
             gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
             gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
                 -1.0, -1.0,
@@ -110,6 +140,8 @@ class WebGLRenderer {
             gl.enableVertexAttribArray(xyLocation);
 
             const texture = gl.createTexture();
+
+            this.texture = texture;
             gl.bindTexture(gl.TEXTURE_2D, texture);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
@@ -132,6 +164,28 @@ class WebGLRenderer {
 
     transferToImageBitmap(): ImageBitmap {
         return this.canvas.transferToImageBitmap();
+    }
+
+    close() {
+        const ctx = this.ctx;
+
+        if (ctx instanceof OffscreenCanvasRenderingContext2D) {
+            return;
+        }
+
+        ctx.bindTexture(ctx.TEXTURE_2D, null);
+        ctx.bindBuffer(ctx.ARRAY_BUFFER, null);
+        if (this.shaderProgram && this.vertexShader) {
+            ctx.detachShader(this.shaderProgram, this.vertexShader);
+        }
+        if (this.shaderProgram && this.fragmentShader) {
+            ctx.detachShader(this.shaderProgram, this.fragmentShader);
+        }
+        ctx.deleteProgram(this.shaderProgram);
+        ctx.deleteShader(this.vertexShader);
+        ctx.deleteShader(this.fragmentShader);
+        ctx.deleteBuffer(this.vertexBuffer);
+        ctx.deleteTexture(this.texture);
     }
 }
 

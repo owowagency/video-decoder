@@ -41,7 +41,6 @@ class WebWorkerDecoder {
     private demuxer: Demuxer | null;
     private currentFrame: number | undefined;
     private requestedFrame: number | null = null;
-    private fallbackDecodeQueueSize = 0;
     private realRenderer: Renderer | null = null;
     private firstRender = true;
 
@@ -66,20 +65,14 @@ class WebWorkerDecoder {
             error: this.onError.bind(this)
         });
         this.decoder.configure(config);
+        this.decoder.addEventListener('dequeue', this.onDequeue.bind(this));
     }
 
-    private checkDecodeQueueSize() {
-        const current = this.fallbackDecodeQueueSize;
-        const next = Math.max(0, current - 1);
-        this.fallbackDecodeQueueSize = next;
+    private onDequeue() {
         const requested = this.requestedFrame;
-
-        if (current !== next && next === 0 && typeof requested === 'number') {
+        if (requested !== null) {
             this.logger.timeEnd('decoder still busy, waiting...');
-            this.requestedFrame = null;
-            setTimeout(() => {
-                this.goto(requested, true);
-            }, 0);
+            this.goto(requested, true);
         }
     }
 
@@ -100,8 +93,6 @@ class WebWorkerDecoder {
             const end = currentPage + this.ahead;
             if (!(framePage >= start && framePage <= end)) {
                 frame.close();
-
-                this.checkDecodeQueueSize();
                 return;
             }
         }
@@ -124,7 +115,6 @@ class WebWorkerDecoder {
         }
 
         frame.close();
-        this.checkDecodeQueueSize();
     }
 
     private onError(error: Error) {
@@ -136,6 +126,10 @@ class WebWorkerDecoder {
     }
 
     goto(frame: number, force: boolean) {
+        if (force) {
+            this.requestedFrame = null;
+        }
+
         if (!force && this.currentFrame === frame) {
             // We don't have to do anything, we are already on this frame
             return;
@@ -168,7 +162,7 @@ class WebWorkerDecoder {
         const start = Math.max(0, newPage - this.behind);
         const end = Math.min(this.pages.size, newPage + this.ahead);
 
-        if (this.fallbackDecodeQueueSize > 0) {
+        if (this.decoder.decodeQueueSize > 0) {
             if (this.requestedFrame === null) {
                 this.logger.time('decoder still busy, waiting...');
             }
@@ -187,8 +181,7 @@ class WebWorkerDecoder {
                 continue;
             }
 
-            const decoded = this.demuxer?.decode(page.from, page.to, this.decoder) || 0;
-            this.fallbackDecodeQueueSize += decoded;
+            this.demuxer?.decode(page.from, page.to, this.decoder) || 0;
         }
     }
 
@@ -204,7 +197,9 @@ class WebWorkerDecoder {
     }
 
     free() {
+        this.realRenderer?.close();
         this.realRenderer = null;
+        this.renderer.close();
         this.pages.freeAll();
         this.decoder.close();
         this.demuxer?.free();
@@ -222,12 +217,13 @@ class WebWorkerDecoder {
         const buffer = await response.arrayBuffer();
         logger.timeEnd('load video file');
         logger.time('demux');
-        const demuxer = load(buffer);
+        const demuxer = load(buffer, WebWorkerDecoder.getContentType(response));
         logger.timeEnd('demux');
         const config: MyVideoDecoderConfig = {
-            codec: options.codec,
+            codec: demuxer.codec() || options.codec,
             codedWidth: demuxer.codedWidth(),
             codedHeight: demuxer.codedHeight(),
+            colorSpace: {}
         }
         
         const supported = await VideoDecoder.isConfigSupported(config);
@@ -237,6 +233,26 @@ class WebWorkerDecoder {
         }
 
         return new WebWorkerDecoder(logger, demuxer, config, options);
+    }
+
+    private static getContentType(response: Response): string {
+        const type = response.headers.get('Content-Type');
+        const fallback = 'mp4';
+
+        if (typeof type === 'string') {
+            const pattern = /^video\/(?<format>.*)$/;
+            const match = type.match(pattern);
+            if (match && match.groups) {
+                switch (match.groups['format']) {
+                    case 'mkv':
+                    case 'webm': return 'mkv';
+                    case 'mp4': return 'mp4';
+                    default: return fallback;
+                }
+            }
+        }
+
+        return fallback;
     }
 }
 
