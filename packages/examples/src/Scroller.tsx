@@ -44,7 +44,7 @@ const useDecoder = (url: string, options: Options, canvas: RefObject<HTMLCanvasE
 
       const current = new Decoder(`${window.location.origin}${url}`, options);
       current.on('loaded', (data) => {
-        current.setRenderer(Renderer, offscreen);
+        current.setRenderer(`${window.location.origin}${Renderer}`, offscreen);
         setDecoder({
           decoder: current,
           width: data.width,
