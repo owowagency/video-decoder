@@ -1,10 +1,10 @@
 {
     "name": "@owowagency/video-decoder-examples",
     "version": "1.0.0",
+    "private": true,
     "scripts": {
         "dev": "vite",
         "build": "vite build",
-        "release": "echo \"No release script for examples\"",
         "generate:video": "node scripts/generate-test-videos.js"
     },
     "dependencies": {

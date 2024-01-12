@@ -1,4 +1,5 @@
 {
+  "name": "@owowagency/video-decoder-host",
   "private": true,
   "version": "1.1.0",
   "workspaces": [
@@ -8,7 +9,7 @@
   "scripts": {
     "dev": "yarn workspaces foreach -Ap run dev",
     "build": "yarn workspaces foreach -Apt run build",
-    "release": "yarn workspaces foreach -A run release",
+    "release": "multi-semantic-release --ignore-private-packages",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "commit": "cz",
     "prepare": "husky install",
@@ -26,6 +27,7 @@
     "cz-conventional-changelog": "^3.3.0",
     "eslint": "^8.53.0",
     "husky": "^8.0.3",
+    "multi-semantic-release": "^3.0.2",
     "semantic-release": "^22.0.10"
   },
   "config": {

@@ -17,8 +17,7 @@
     },
     "scripts": {
         "dev": "vite build --watch",
-        "build": "vite build",
-        "release": "semantic-release"
+        "build": "vite build"
     },
     "devDependencies": {
         "typescript": "^5.2.2",
