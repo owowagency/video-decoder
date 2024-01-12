@@ -1571,9 +1571,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@owowagency/video-decoder-host@workspace:.":
+"@owowagency/video-decoder-root@workspace:.":
   version: 0.0.0-use.local
-  resolution: "@owowagency/video-decoder-host@workspace:."
+  resolution: "@owowagency/video-decoder-root@workspace:."
   dependencies:
     "@commitlint/cli": "npm:^18.4.3"
     "@commitlint/config-conventional": "npm:^18.4.3"
